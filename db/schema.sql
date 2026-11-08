@@ -8,7 +8,7 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE TYPE user_role AS ENUM ('buyer', 'merchant', 'moderator', 'admin');
 CREATE TYPE listing_kind AS ENUM ('item', 'service','food');
 CREATE TYPE listing_status AS ENUM ( 'draft', 'active', 'reserved', 'sold', 'expired', 'removed');
-CREATE TYPE item_condition AS ENUM ( 'new', 'like_new', 'good', 'fair', 'for parts');
+CREATE TYPE item_condition AS ENUM ( 'new', 'like new', 'good', 'fair', 'for parts');
 CREATE TYPE report_status AS ENUM ('awaiting review', 'reviewing', 'actioned', 'dismissed');
 
 --CAMPUS TABLE
@@ -37,7 +37,8 @@ CREATE TABLE users (
     is_banned BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    deleted_at TIMESTAMPTZ);
+    deleted_at TIMESTAMPTZ,
+    refresh_token_hash TEXT);
 CREATE INDEX users_campus_idx ON users(home_campus_id);
 
 -- Catagories
@@ -126,7 +127,7 @@ CREATE TABLE inquiries (
         REFERENCES users(user_id),
 
     channel TEXT NOT NULL DEFAULT 'telegram'
-        CHECK (channel IN ('telegram', 'phone', 'in_app')),
+        CHECK (channel IN ('telegram', 'phone', 'in app')),
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 

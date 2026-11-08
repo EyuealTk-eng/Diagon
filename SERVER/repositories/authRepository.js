@@ -2,65 +2,56 @@ import pool from '../db.js';
 
 export const emailCheckQ = async (email, client = pool) => {
   return client.query(
-    'SELECT user_id, email, password_hash FROM user WHERE LOWER(email) = LOWER($1)',
+    'SELECT user_id FROM users WHERE email = $1',
     [email]
   );
 };
 
-export const newbieQ = async (client, { firstName, middleName, lastName, email, hashedPassword }) => {
+export const phoneCheckQ = async (phone, client = pool) => {
   return client.query(
-    `INSERT INTO users (first_name, middle_name, last_name, email, password_hash, username)
-     VALUES ($1, $2, $3, $4, $5, $4)
-     RETURNING user_id, first_name, middle_name, last_name, email`,
-    [firstName, middleName, lastName, email.toLowerCase(), hashedPassword]
+    'SELECT user_id FROM users WHERE phone = $1',
+    [phone]
   );
 };
 
-export const rolePullQ = async (roleName = 'COORDINATOR', client = pool) => {
+export const newbieQ = async (client, { firstName, fatherName, email, phone, hashedPassword, campusId = null }) => {
   return client.query(
-    'SELECT role_id FROM elearning.role WHERE UPPER(role_name) = UPPER($1)',
-    [roleName]
+    `INSERT INTO users (first_name, father_name, email, phone, password_hash, home_campus_id, role)
+     VALUES ($1, $2, $3, $4, $5, $6, 'buyer')
+     RETURNING user_id, first_name, father_name, email, phone, role`,
+    [firstName, fatherName, email, phone, hashedPassword, campusId]
   );
 };
-
-export const roleAssignQ = async (client, userId, roleId) => {
-  return client.query(
-    'INSERT INTO elearning.user (user_id, role_id) VALUES ($1, $2)',
-    [userId, roleId]
-  );
-};
-
 export const logInQ = async (email, client = pool) => {
   return client.query(
-    `SELECT u.user_id, u.first_name, u.email, u.password_hash, r.role_name 
-     FROM elearning.app_user u 
-     LEFT JOIN elearning.user_role ur ON u.user_id = ur.user_id 
-     LEFT JOIN elearning.role r ON ur.role_id = r.role_id 
-     WHERE LOWER(u.email) = LOWER($1)`,
+    `SELECT user_id, first_name, father_name, email, password_hash, role, is_banned
+     FROM users 
+     WHERE email = $1 AND deleted_at IS NULL`,
     [email]
   );
 };
-
+//update refresh token
 export const updateRefreshTokenQ = async (newRefreshTokenHash, userId, oldRefreshTokenHash, client = pool) => {
   return client.query(
-    `UPDATE elearning.app_user
-     SET refresh_token = $1
-     WHERE user_id = $2 AND refresh_token = $3
+    `UPDATE users 
+     SET refresh_token_hash = $1 
+     WHERE user_id = $2 AND refresh_token_hash = $3
      RETURNING user_id`,
     [newRefreshTokenHash, userId, oldRefreshTokenHash]
   );
 };
 
+// Logout
 export const sessionRevokeQ = async (userId, client = pool) => {
   return client.query(
-    'UPDATE elearning.app_user SET refresh_token = NULL WHERE user_id = $1',
+    'UPDATE users SET refresh_token_hash = NULL WHERE user_id = $1',
     [userId]
   );
 };
 
 export const refreshTokenLogInQ = async (refreshTokenHash, userId, client = pool) => {
   return client.query(
-    'UPDATE elearning.app_user SET refresh_token = $1 WHERE user_id = $2',
+    'UPDATE users SET refresh_token_hash = $1 WHERE user_id = $2',
     [refreshTokenHash, userId]
   );
 };

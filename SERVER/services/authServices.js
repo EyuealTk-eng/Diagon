@@ -3,15 +3,20 @@ import pool from '../db.js';
 import * as authRepo from '../repositories/authRepository.js';
 import { jwtTokens, hashToken, verifyRefreshToken } from '../utils/jwthelpers.js';
 import AppError from '../utils/AppError.js';
-import { ROLES } from '../utils/constants.js';
+import { roles } from '../utils/constants.js';
 
-export const signUpS = async (firstName, middleName, lastName, email, password) => {
+export const signUpS = async ({firstName, fatherName,email, password,campusId,phone}) => {
   const normalizedEmail = email.trim().toLowerCase();
 
   const emailCheck = await authRepo.emailCheckQ(normalizedEmail);
+  const phoneCheck= await authRepo.phoneCheckQ(phone.trim());
+  if(phoneCheck.rows.length>0){
+    throw AppError.conflict('Phone already registered.');
+  }
   if (emailCheck.rows.length > 0) {
     throw AppError.conflict('Email is already registered.');
   }
+
 
   const client = await pool.connect();
   try {
@@ -20,23 +25,19 @@ export const signUpS = async (firstName, middleName, lastName, email, password) 
     const hashedPassword = await bcrypt.hash(password, 10);
     const userRes = await authRepo.newbieQ(client, {
       firstName,
-      middleName,
-      lastName,
-      email: normalizedEmail,
-      hashedPassword
+      fatherName,
+      email:normalizedEmail,
+      phone,
+      hashedPassword,
+      campusId
     });
     const newUser = userRes.rows[0];
 
-    const roleRes = await authRepo.rolePullQ(ROLES.COORDINATOR, client);
-    if (roleRes.rows.length === 0) {
-      throw AppError.internal('Default coordinator role is not configured in the database.');
-    }
-    await authRepo.roleAssignQ(client, newUser.user_id, roleRes.rows[0].role_id);
 
     const tokens = jwtTokens({
       userId: newUser.user_id,
       email: newUser.email,
-      role: ROLES.COORDINATOR,
+      role: roles.buyer,
       firstName: newUser.first_name
     });
 
@@ -52,7 +53,7 @@ export const signUpS = async (firstName, middleName, lastName, email, password) 
         userId: newUser.user_id,
         firstName: newUser.first_name,
         email: newUser.email,
-        role: ROLES.COORDINATOR
+        role: roles.buyer
       }
     };
   } catch (err) {
@@ -63,7 +64,7 @@ export const signUpS = async (firstName, middleName, lastName, email, password) 
   }
 };
 
-export const logInS = async (email, password) => {
+export const logInS = async ({email, password}) => {
   const normalizedEmail = email.trim().toLowerCase();
   const userRes = await authRepo.logInQ(normalizedEmail);
 
@@ -77,7 +78,11 @@ export const logInS = async (email, password) => {
     throw AppError.unauthorized('Invalid email or password.');
   }
 
-  const userRole = (user.role_name || ROLES.COORDINATOR).toUpperCase();
+  if (user.is_banned) {
+  throw AppError.forbidden('Your account has been suspended.');
+}
+
+  const userRole = (user.role || roles.buyer).toUpperCase();
 
   const tokens = jwtTokens({
     userId: user.user_id,
@@ -104,9 +109,13 @@ export const refreshTokenS = async (refreshToken) => {
   if (!refreshToken) {
     throw AppError.badRequest('No refresh token provided.');
   }
-
-  const decoded = verifyRefreshToken(refreshToken);
-
+let decoded;
+  try{
+  decoded = verifyRefreshToken(refreshToken);
+  }
+  catch(err){
+  throw AppError.unauthorized('Invalid or expried refresh token. Please log in again.')
+  }
   const tokens = jwtTokens(decoded);
 
   const updateRes = await authRepo.updateRefreshTokenQ(

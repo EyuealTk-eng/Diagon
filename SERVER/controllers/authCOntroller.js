@@ -12,10 +12,11 @@ const COOKIE_OPTIONS = {
 export const signUpC = asyncHandler(async (req, res) => {
   const result = await authServices.signUpS(
     req.body.firstName,
-    req.body.middleName,
-    req.body.lastName,
+    req.body.fatherName,
+    req.body.phone,
     req.body.email,
-    req.body.user_password
+    req.body.campusId,
+    req.body.password
   );
 
   if (result.refreshToken) {
@@ -26,7 +27,7 @@ export const signUpC = asyncHandler(async (req, res) => {
 });
 
 export const logInC = asyncHandler(async (req, res) => {
-  const result = await authServices.logInS(req.body.email, req.body.user_password);
+  const result = await authServices.logInS(req.body.email, req.body.password);
 
   if (result.refreshToken) {
     res.cookie('refreshToken', result.refreshToken, COOKIE_OPTIONS);
