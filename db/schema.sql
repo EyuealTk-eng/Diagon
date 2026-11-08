@@ -35,6 +35,7 @@ CREATE TABLE users (
     verified_at TIMESTAMPTZ,
     preferred_lang CHAR(2) NOT NULL DEFAULT 'en' CHECK (preferred_lang IN ('en', 'am')),
     is_banned BOOLEAN NOT NULL DEFAULT FALSE,
+    refresh_token TEXT, -- hashed, NULL = logged out
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     deleted_at TIMESTAMPTZ);
@@ -79,7 +80,7 @@ CREATE TABLE listings (
     deleted_at TIMESTAMPTZ,
     CHECK ( (kind = 'item' AND condition IS NOT NULL)
         OR
-       (kind = 'service' AND condition IS NULL)));
+       (kind IN ('service', 'food') AND condition IS NULL)));
 
 -- Fast feed, filtering and seller dashboard
 CREATE INDEX listings_feed_idx ON listings (status, campus_id, category_id, bumped_at DESC);

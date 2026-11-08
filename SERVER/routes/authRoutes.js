@@ -1,6 +1,6 @@
 import express from 'express';
 import * as authController from '../controllers/authController.js';
-import { authToken } from '../middleware/Authjwt.js';
+import { authToken } from '../middleware/authJWT.js';
 import { strainerAuth } from '../middleware/ratelimiter.js';
 import { validate, signUp, regular } from '../middleware/GeneralZOD.js';
 

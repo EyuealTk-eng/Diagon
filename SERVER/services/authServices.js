@@ -5,7 +5,7 @@ import { jwtTokens, hashToken, verifyRefreshToken } from '../utils/jwthelpers.js
 import AppError from '../utils/AppError.js';
 import { ROLES } from '../utils/constants.js';
 
-export const signUpS = async (firstName, middleName, lastName, email, password) => {
+export const signUpS = async (firstName, fatherName, email, phone, password, homeCampusId) => {
   const normalizedEmail = email.trim().toLowerCase();
 
   const emailCheck = await authRepo.emailCheckQ(normalizedEmail);
@@ -20,23 +20,18 @@ export const signUpS = async (firstName, middleName, lastName, email, password) 
     const hashedPassword = await bcrypt.hash(password, 10);
     const userRes = await authRepo.newbieQ(client, {
       firstName,
-      middleName,
-      lastName,
+      fatherName,
       email: normalizedEmail,
-      hashedPassword
+      phone,
+      hashedPassword,
+      homeCampusId
     });
-    const newUser = userRes.rows[0];
-
-    const roleRes = await authRepo.rolePullQ(ROLES.COORDINATOR, client);
-    if (roleRes.rows.length === 0) {
-      throw AppError.internal('Default coordinator role is not configured in the database.');
-    }
-    await authRepo.roleAssignQ(client, newUser.user_id, roleRes.rows[0].role_id);
+    const newUser = userRes.rows[0]; // role comes from the DB default (buyer)
 
     const tokens = jwtTokens({
       userId: newUser.user_id,
       email: newUser.email,
-      role: ROLES.COORDINATOR,
+      role: newUser.role,
       firstName: newUser.first_name
     });
 
@@ -52,7 +47,7 @@ export const signUpS = async (firstName, middleName, lastName, email, password) 
         userId: newUser.user_id,
         firstName: newUser.first_name,
         email: newUser.email,
-        role: ROLES.COORDINATOR
+        role: newUser.role
       }
     };
   } catch (err) {
@@ -77,7 +72,11 @@ export const logInS = async (email, password) => {
     throw AppError.unauthorized('Invalid email or password.');
   }
 
-  const userRole = (user.role_name || ROLES.COORDINATOR).toUpperCase();
+  if (user.is_banned) {
+    throw AppError.forbidden('This account has been banned.');
+  }
+
+  const userRole = user.role || ROLES.BUYER;
 
   const tokens = jwtTokens({
     userId: user.user_id,
@@ -139,6 +138,7 @@ export const logOutS = async (refreshToken, userId = null) => {
       const decoded = verifyRefreshToken(refreshToken);
       targetUserId = decoded.userId;
     } catch {
+      // expired/bad token, fall back to the userId from the access token
     }
   }
 

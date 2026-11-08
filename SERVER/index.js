@@ -1,9 +1,10 @@
-
 import express, { json } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import dotenv from 'dotenv';
+import { env } from './utils/env.js';
+import wall from './routes/authRoutes.js';
+import { errorHandler } from './middleware/errorHandler.js';
 
 
 const app = express();
@@ -11,15 +12,10 @@ const app = express();
 // Security headers
 app.use(helmet());
 
-const env = {
-  port: Number(process.env.PORT) || 3000,
-  node_env: process.env.NODE_ENV || 'development',
-  client_url: process.env.CLIENT_URL || 'http://localhost:5173',
-};
 // Cross ORignin REsource sharing
 app.use(
   cors({
-    origin: env.client_url,
+    origin: env.CLIENT_URL,
     credentials: true,
   })
 );
@@ -30,13 +26,25 @@ app.use(json());
 // cookie to javascript Conversion PARSINGG
 app.use(cookieParser());
 
+// is it alive
+app.get('/api/health', (req, res) => res.json({ status: 'OK' }));
+
+// Auth wall
+app.use('/api/auth', wall);
+
+// Nothing here
+app.use((req, res) => res.status(404).json({ message: 'Route not found.' }));
+
+// Errors land here LAST
+app.use(errorHandler);
+
 
 export { app };
 
 
 // Start the HTTP server
-const server = app.listen(process.env.PORT, () => {
-  console.log(`Server is live on port ${env.port} [${env.node_env}]` );
+const server = app.listen(env.PORT, () => {
+  console.log(`Server is live on port ${env.PORT} [${env.NODE_ENV}]`);
 });
 
 export { server };
