@@ -21,4 +21,5 @@ class AppError extends Error{
    static internal(message= 'Internale Server Error'){return new AppError(message,500);}
 
 }
+export default AppError
     
